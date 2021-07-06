@@ -1,0 +1,4 @@
+benchmark.db
+benchmark.db.wal
+data/
+arrow/arrow/
