@@ -1,9 +1,5 @@
 #!/usr/bin/env Rscript
 
-cat("# join-arrow\n")
-
-source("./_helpers/helpers.R")
-
 .libPaths("./arrow/r-arrow") # tidyverse/dplyr#4641 ## leave it like here in case if this affects arrow pkg as well
 suppressPackageStartupMessages({
   library("arrow", lib.loc="./arrow/r-arrow", warn.conflicts=FALSE)
@@ -26,15 +22,15 @@ big = read_csv_arrow("../data/J1_1e7_1e7_0_0.csv", schema = schema(id1=int32(),i
 task_init = proc.time()[["elapsed"]]
 cat("joining...\n")
 
-question = "small inner on int" # q1
-fun = "inner_join"
-t = system.time(print(dim(ans<-inner_join(x, small, by="id1"))))[["elapsed"]]
-rm(ans)
-print(t)
+# question = "small inner on int" # q1
+# fun = "inner_join"
+# t = system.time(print(dim(ans<-inner_join(x, small, by="id1"))))[["elapsed"]]
+# rm(ans)
+# print(t)
 
-t = system.time(print(dim(ans<-inner_join(x, small, by="id1"))))[["elapsed"]]
-rm(ans)
-print(t)
+# t = system.time(print(dim(ans<-inner_join(x, small, by="id1"))))[["elapsed"]]
+# rm(ans)
+# print(t)
 
 question = "medium inner on int" # q2
 fun = "inner_join"
