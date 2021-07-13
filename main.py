@@ -96,20 +96,25 @@ class DuckDBBenchmark:
         self.con_test = con_test
 
 
-def load_arrow(con_test_duck,con):
-    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/G1_1e7_1e2_5_0.csv').to_batches(2500000))
+def load_arrow(con):
+    arrow_table = pyarrow.Table.from_batches(con.execute("SELECT * FROM x_group").arrow().to_batches(2500000))
+    con.execute("Drop table x_group")
     con.register_arrow("x_group", arrow_table)
    
-    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_NA_0_0.csv.gz').to_batches(2500000))
+    arrow_table = pyarrow.Table.from_batches(con.execute("SELECT * FROM x").arrow().to_batches(2500000))
+    con.execute("Drop table x")
     con.register_arrow("x", arrow_table)
 
-    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e1_0_0.csv.gz').to_batches(2500000))
+    arrow_table = pyarrow.Table.from_batches(con.execute("SELECT * FROM small").arrow().to_batches(2500000))
+    con.execute("Drop table small")
     con.register_arrow("small", arrow_table)
 
-    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e4_0_0.csv.gz').to_batches(2500000))
+    arrow_table = pyarrow.Table.from_batches(con.execute("SELECT * FROM medium").arrow().to_batches(2500000))
+    con.execute("Drop table medium")
     con.register_arrow("medium", arrow_table)
 
-    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e7_0_0.csv.gz').to_batches(2500000))
+    arrow_table = pyarrow.Table.from_batches(con.execute("SELECT * FROM big").arrow().to_batches(2500000))
+    con.execute("Drop table big")
     con.register_arrow("big", arrow_table)
 
 
@@ -117,22 +122,22 @@ con = duckdb.connect("benchmark.db")
 
 con_test_duck = duckdb.connect()
 
-benchmark = DuckDBBenchmark(con, "Master", "Duck",con_test)
+benchmark = DuckDBBenchmark(con, "Master", "Duck",con_test_duck)
 benchmark.start()
 
-con_test.execute("PRAGMA threads=4")
-con_test.execute("PRAGMA force_parallelism")
+con_test_duck.execute("PRAGMA threads=4")
+con_test_duck.execute("PRAGMA force_parallelism")
 
-benchmark = DuckDBBenchmark(con, "Master", "Duck4T",con_test)
+benchmark = DuckDBBenchmark(con, "Master", "Duck4T",con_test_duck)
 benchmark.start()
 
-con_test = duckdb.connect()
-load_arrow(con_test_duck,con_test)
+load_arrow(con_test_duck)
+con_test_duck.execute("PRAGMA threads=1")
 
-benchmark = DuckDBBenchmark(con, "Master", "DuckArrow",con_test)
+benchmark = DuckDBBenchmark(con, "Master", "DuckArrow",con_test_duck)
 benchmark.start()
 
 
-con_test.execute("PRAGMA threads=4")
-benchmark = DuckDBBenchmark(con, "Master", "DuckArrow4T",con_test)
+con_test_duck.execute("PRAGMA threads=4")
+benchmark = DuckDBBenchmark(con, "Master", "DuckArrow4T",con_test_duck)
 benchmark.start()
