@@ -35,11 +35,13 @@ class BenchmarkRunner:
 
                 total_time.append(cur_time)
 
-            self.con.execute("INSERT INTO RESULT (ID_TEST, QUERY, TIME_FIRST, TIME_SECOND) VALUES (?, ?, ?, ?)",
-                             (benchmark_id, query_number, total_time[0],total_time[1]))
+            self.con.execute("INSERT INTO RESULT (ID_TEST, QUERY, TIME) VALUES (?, ?, ?)",
+                             (benchmark_id, query_number, total_time[0]))
+            self.con.execute("INSERT INTO RESULT (ID_TEST, QUERY, TIME) VALUES (?, ?, ?)",
+                             (benchmark_id, query_number, total_time[1]))
             query_number += 1
-        for drop_statement in self.drop_statements:
-            self.con_test.execute(drop_statement)
+        # for drop_statement in self.drop_statements:
+        #     self.con_test.execute(drop_statement)
 
     def __init__(self, create_sql, drop_sql, queries, con, con_test):
         self.create_statements = create_sql
@@ -67,15 +69,15 @@ class DuckDBBenchmark:
                          (self.name, self.commit_hash))
         engine_id = self.con.execute("SELECT MAX(ID) FROM ENGINE").fetchone()[0]
         self.run_group_by(engine_id)
-        # self.run_join(engine_id)
+        self.run_join(engine_id)
 
     def get_queries(self, file_path):
         file = open(file_path, 'r')
         return file.readlines()
 
     def run_group_by(self, engine_id):
-        create_sql = ["CREATE TABLE IF NOT EXISTS x_group AS SELECT * FROM read_csv_auto('data/G1_1e7_1e2_5_0.csv.gz');"]
-        drop_sql = ["DROP TABLE IF EXISTS x_group"]
+        create_sql = ["CREATE TABLE IF NOT EXISTS x_group AS SELECT * FROM read_csv_auto('data/G1_1e7_1e2_5_0.csv');"]
+        drop_sql = [""]
         queries = self.get_queries('group_by_queries.txt')
         runner = BenchmarkRunner(create_sql, drop_sql, queries, self.con, self.con_test)
         runner.execute_benchmark("Group By", engine_id)
@@ -94,41 +96,43 @@ class DuckDBBenchmark:
         self.con_test = con_test
 
 
-def load_arrow(con):
-    arrow_table = pyarrow.csv.read_csv('data/G1_1e7_1e2_5_0.csv.gz').to_batches(2500000)
-    arrow_table = pyarrow.Table.from_batches(arrow_table)
-    con .register_arrow("x_group", arrow_table)
+def load_arrow(con_test_duck,con):
+    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/G1_1e7_1e2_5_0.csv').to_batches(2500000))
+    con.register_arrow("x_group", arrow_table)
+   
+    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_NA_0_0.csv.gz').to_batches(2500000))
+    con.register_arrow("x", arrow_table)
 
-    # arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_NA_0_0.csv.gz').to_batches(2500000))
-    # con.from_arrow_table(arrow_table).create('x')
+    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e1_0_0.csv.gz').to_batches(2500000))
+    con.register_arrow("small", arrow_table)
 
-    # arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e1_0_0.csv.gz').to_batches(2500000))
-    # con.from_arrow_table(arrow_table).create('small')
+    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e4_0_0.csv.gz').to_batches(2500000))
+    con.register_arrow("medium", arrow_table)
 
-    # arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e4_0_0.csv.gz').to_batches(2500000))
-    # con.from_arrow_table(arrow_table).create('medium')
-
-    # arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e7_0_0.csv.gz').to_batches(2500000))
-    # con.from_arrow_table(arrow_table).create('big')
+    arrow_table = pyarrow.Table.from_batches(pyarrow.csv.read_csv('data/J1_1e7_1e7_0_0.csv.gz').to_batches(2500000))
+    con.register_arrow("big", arrow_table)
 
 
 con = duckdb.connect("benchmark.db")
 
+con_test_duck = duckdb.connect()
+
+benchmark = DuckDBBenchmark(con, "Master", "Duck",con_test)
+benchmark.start()
+
+con_test.execute("PRAGMA threads=4")
+con_test.execute("PRAGMA force_parallelism")
+
+benchmark = DuckDBBenchmark(con, "Master", "Duck4T",con_test)
+benchmark.start()
+
 con_test = duckdb.connect()
+load_arrow(con_test_duck,con_test)
 
-benchmark = DuckDBBenchmark(con, "Master", "DuckDB",con_test)
+benchmark = DuckDBBenchmark(con, "Master", "DuckArrow",con_test)
 benchmark.start()
 
-load_arrow(con_test)
-benchmark = DuckDBBenchmark(con, "Master", "DuckDB-Arrow",con_test)
-benchmark.start()
 
-con.execute("PRAGMA threads=4")
-con.execute("PRAGMA force_parallelism")
-
-benchmark = DuckDBBenchmark(con, "Master", "DuckDB-4T",con_test)
-benchmark.start()
-
-load_arrow(con)
-benchmark = DuckDBBenchmark(con, "Master", "DuckDB-Arrow-4T",con_test)
+con_test.execute("PRAGMA threads=4")
+benchmark = DuckDBBenchmark(con, "Master", "DuckArrow4T",con_test)
 benchmark.start()

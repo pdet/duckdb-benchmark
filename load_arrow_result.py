@@ -14,8 +14,10 @@ benchmark_id = con.execute("SELECT MAX(ID) FROM TEST").fetchone()[0]
 
 i = 0
 query_number = 0
-while (i < len(query_results)/2):
-    con.execute("INSERT INTO RESULT (ID_TEST, QUERY, TIME_FIRST, TIME_SECOND) VALUES (?, ?, ?, ?)",
-                             (benchmark_id, query_number, query_results[i],query_results[i+1]))
+while (i < len(query_results)):
+    con.execute("INSERT INTO RESULT (ID_TEST, QUERY, TIME) VALUES (?, ?, ?)",
+                             (benchmark_id, query_number, query_results[i]))
+    con.execute("INSERT INTO RESULT (ID_TEST, QUERY, TIME) VALUES (?, ?, ?)",
+                             (benchmark_id, query_number, query_results[i+1]))
     i += 2
     query_number +=1
